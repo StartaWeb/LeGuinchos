@@ -11,26 +11,24 @@ document.getElementById("formServico").addEventListener("submit", function(e) {
   const valor = parseFloat(document.getElementById("valor").value);
   const desconto = parseFloat(document.getElementById("desconto").value);
   const pedagio = document.getElementById("pedagio").value; // sim ou nao
-  const valorPedagio = parseFloat(document.getElementById("valorPedagio").value) || 0;
 
   if (!cliente || !seguradora || isNaN(valor) || isNaN(desconto)) {
     alert("Preencha todos os campos corretamente!");
     return;
   }
 
-  // Valor final = valor - desconto + pedágio
-  const valorFinal = (valor - (valor * desconto / 100)) + valorPedagio;
+  // Valor final = valor - desconto (sem pedágio extra)
+  const valorFinal = valor - (valor * desconto / 100);
 
-  const servico = { 
-    id: Date.now(), 
-    cliente, 
-    seguradora, 
-    horario, 
-    valor, 
-    desconto, 
-    pedagio, 
-    valorPedagio, 
-    valorFinal 
+  const servico = {
+    id: Date.now(),
+    cliente,
+    seguradora,
+    horario,
+    valor,
+    desconto,
+    pedagio,
+    valorFinal
   };
 
   servicos.push(servico);
@@ -67,7 +65,7 @@ function atualizarTabela(filtro = "") {
         <td>${new Date(s.horario).toLocaleString()}</td>
         <td>R$ ${s.valor.toFixed(2)}</td>
         <td>${s.desconto}%</td>
-        <td>${s.pedagio === "sim" ? "Sim (R$ " + s.valorPedagio.toFixed(2) + ")" : "Não"}</td>
+        <td>${s.pedagio === "sim" ? "Sim" : "Não"}</td>
         <td>R$ ${s.valorFinal.toFixed(2)}</td>
         <td>
           <button onclick="editar(${s.id})">Editar</button>
@@ -87,7 +85,6 @@ function editar(id) {
   document.getElementById("valor").value = servico.valor;
   document.getElementById("desconto").value = servico.desconto;
   document.getElementById("pedagio").value = servico.pedagio;
-  document.getElementById("valorPedagio").value = servico.valorPedagio;
   deletar(id); // remove para atualizar depois
 }
 
@@ -129,7 +126,7 @@ document.getElementById("btnPDF").addEventListener("click", function() {
     new Date(s.horario).toLocaleString(),
     "R$ " + s.valor.toFixed(2),
     s.desconto + "%",
-    s.pedagio === "sim" ? "Sim (R$ " + s.valorPedagio.toFixed(2) + ")" : "Não",
+    s.pedagio === "sim" ? "Sim" : "Não",
     "R$ " + s.valorFinal.toFixed(2)
   ]);
 
