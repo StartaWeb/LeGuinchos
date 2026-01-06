@@ -1,7 +1,7 @@
 {
-  "name": "Le Guinchos",
-  "short_name": "Guinchos",
-  "start_url": "index.html",
+  "name": "Le Guincho",
+  "short_name": "Le Guincho",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#001f3f",
