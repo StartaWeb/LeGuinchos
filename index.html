@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Le Guincho - App do Motorista</title>
+  <meta name="description" content="Le Guincho - Aplicativo para motoristas de guincho. Checklist, fotos, despesas e relatórios.">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#001a33">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Header -->
+<header id="appHeader">
+  <h1 class="logo-text">Le Guincho</h1>
+  <p class="header-subtitle">App do Motorista</p>
+</header>
+
+<!-- ========== TAB: INÍCIO ========== -->
+<section id="tabInicio" class="tab-content active">
+  <div class="container">
+    <div class="dashboard-cards">
+      <div class="dash-card"><span class="dash-icon">🚛</span><div class="dash-info"><span class="dash-value" id="totalServicos">0</span><span class="dash-label">Serviços</span></div></div>
+      <div class="dash-card"><span class="dash-icon">💰</span><div class="dash-info"><span class="dash-value" id="totalValor">R$ 0</span><span class="dash-label">Faturamento</span></div></div>
+      <div class="dash-card"><span class="dash-icon">📋</span><div class="dash-info"><span class="dash-value" id="totalChecklists">0</span><span class="dash-label">Checklists</span></div></div>
+    </div>
+    <div class="quick-actions">
+      <button class="action-btn" onclick="switchTab('tabChecklist')"><span>📋</span> Novo Checklist</button>
+      <button class="action-btn" onclick="switchTab('tabFotos')"><span>📸</span> Tirar Foto</button>
+      <button class="action-btn" onclick="switchTab('tabDespesas')"><span>💰</span> Nova Despesa</button>
+    </div>
+    <div class="card">
+      <h2 class="section-title">Novo Serviço</h2>
+      <form id="formServico">
+        <div class="form-group"><label>Motorista</label><input type="text" id="motorista" placeholder="Nome do motorista" required></div>
+        <div class="form-group"><label>Seguradora</label><input type="text" id="seguradora" placeholder="Seguradora" required></div>
+        <div class="form-row">
+          <div class="form-group"><label>Data/Hora</label><input type="datetime-local" id="horario" required></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Valor (R$)</label><input type="number" id="valor" placeholder="0.00" step="0.01" required></div>
+          <div class="form-group"><label>Desconto (%)</label><input type="number" id="desconto" placeholder="0" required></div>
+        </div>
+        <div class="form-group"><label>Pedágio</label><select id="pedagio"><option value="nao">Não</option><option value="sim">Sim</option></select></div>
+        <button type="submit" class="btn-primary">➕ Adicionar Serviço</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2 class="section-title">Serviços Recentes</h2>
+      <input type="text" id="pesquisa" class="search-input" placeholder="🔍 Pesquisar serviço...">
+      <div id="listaServicos" class="service-list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TAB: CHECKLIST ========== -->
+<section id="tabChecklist" class="tab-content">
+  <div class="container">
+    <div class="card">
+      <h2 class="section-title">🚗 Dados do Veículo</h2>
+      <div class="form-row"><div class="form-group"><label>Placa</label><input type="text" id="veiPlaca" placeholder="ABC-1234" maxlength="8"></div><div class="form-group"><label>Modelo</label><input type="text" id="veiModelo" placeholder="Ex: Fiat Uno"></div></div>
+      <div class="form-row"><div class="form-group"><label>Cor</label><input type="text" id="veiCor" placeholder="Ex: Prata"></div><div class="form-group"><label>Ano</label><input type="number" id="veiAno" placeholder="2024"></div></div>
+      <div class="form-group"><label>Seguradora</label><input type="text" id="veiSeguradora" placeholder="Seguradora"></div>
+    </div>
+    <div class="card">
+      <h2 class="section-title">👤 Dados do Proprietário <span class="badge-optional">Opcional</span></h2>
+      <div class="form-group"><label>Nome</label><input type="text" id="propNome" placeholder="Nome do proprietário"></div>
+      <div class="form-row"><div class="form-group"><label>CPF</label><input type="text" id="propCPF" placeholder="000.000.000-00"></div><div class="form-group"><label>Telefone</label><input type="tel" id="propTelefone" placeholder="(11) 99999-9999"></div></div>
+      <div class="form-group"><label>Endereço</label><input type="text" id="propEndereco" placeholder="Endereço completo"></div>
+      <div class="form-group"><label>E-mail</label><input type="email" id="propEmail" placeholder="email@exemplo.com"></div>
+    </div>
+    <div class="card">
+      <h2 class="section-title">🔍 Inspeção do Veículo</h2>
+      <p class="card-subtitle">Toque nas partes do veículo para inspecionar</p>
+      <div class="car-diagram-container">
+        <svg id="carDiagram" viewBox="0 0 300 500" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="carGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a3a5c"/><stop offset="100%" stop-color="#0d1f33"/></linearGradient>
+          </defs>
+          <rect x="88" y="38" width="124" height="424" rx="30" fill="rgba(0,0,0,0.3)"/>
+          <rect x="85" y="35" width="130" height="430" rx="30" fill="url(#carGrad)" stroke="#0088ff" stroke-width="1.5"/>
+          <!-- Clickable parts -->
+          <rect class="car-part" x="90" y="38" width="120" height="28" rx="14" data-part="para_choque_dianteiro" data-label="Para-choque Dianteiro"/>
+          <rect class="car-part" x="92" y="43" width="25" height="18" rx="6" data-part="farol_esquerdo" data-label="Farol Esquerdo"/>
+          <rect class="car-part" x="183" y="43" width="25" height="18" rx="6" data-part="farol_direito" data-label="Farol Direito"/>
+          <rect class="car-part" x="92" y="70" width="116" height="80" rx="8" data-part="capo" data-label="Capô"/>
+          <polygon class="car-part" points="100,155 200,155 195,190 105,190" data-part="para_brisa_dianteiro" data-label="Para-brisa Dianteiro"/>
+          <ellipse class="car-part" cx="76" cy="170" rx="14" ry="9" data-part="retrovisor_esquerdo" data-label="Retrovisor Esquerdo"/>
+          <ellipse class="car-part" cx="224" cy="170" rx="14" ry="9" data-part="retrovisor_direito" data-label="Retrovisor Direito"/>
+          <rect class="car-part" x="87" y="195" width="15" height="60" rx="4" data-part="porta_dianteira_esquerda" data-label="Porta Diant. Esquerda"/>
+          <rect class="car-part" x="198" y="195" width="15" height="60" rx="4" data-part="porta_dianteira_direita" data-label="Porta Diant. Direita"/>
+          <rect class="car-part" x="105" y="195" width="90" height="110" rx="6" data-part="teto" data-label="Teto"/>
+          <rect class="car-part" x="87" y="260" width="15" height="55" rx="4" data-part="porta_traseira_esquerda" data-label="Porta Tras. Esquerda"/>
+          <rect class="car-part" x="198" y="260" width="15" height="55" rx="4" data-part="porta_traseira_direita" data-label="Porta Tras. Direita"/>
+          <polygon class="car-part" points="105,320 195,320 200,355 100,355" data-part="para_brisa_traseiro" data-label="Para-brisa Traseiro"/>
+          <rect class="car-part" x="92" y="360" width="116" height="70" rx="8" data-part="porta_malas" data-label="Porta-malas"/>
+          <circle class="car-part" cx="150" cy="395" r="18" data-part="estepe" data-label="Estepe"/>
+          <rect class="car-part" x="92" y="432" width="25" height="12" rx="4" data-part="lanterna_esquerda" data-label="Lanterna Esquerda"/>
+          <rect class="car-part" x="183" y="432" width="25" height="12" rx="4" data-part="lanterna_direita" data-label="Lanterna Direita"/>
+          <rect class="car-part" x="90" y="447" width="120" height="16" rx="8" data-part="para_choque_traseiro" data-label="Para-choque Traseiro"/>
+          <rect class="car-part tire" x="65" y="90" width="22" height="48" rx="9" data-part="pneu_dianteiro_esquerdo" data-label="Pneu Diant. Esquerdo"/>
+          <rect class="car-part tire" x="213" y="90" width="22" height="48" rx="9" data-part="pneu_dianteiro_direito" data-label="Pneu Diant. Direito"/>
+          <rect class="car-part tire" x="65" y="365" width="22" height="48" rx="9" data-part="pneu_traseiro_esquerdo" data-label="Pneu Tras. Esquerdo"/>
+          <rect class="car-part tire" x="213" y="365" width="22" height="48" rx="9" data-part="pneu_traseiro_direito" data-label="Pneu Tras. Direito"/>
+          <!-- Labels -->
+          <text x="150" y="115" class="car-label" text-anchor="middle">CAPÔ</text>
+          <text x="150" y="177" class="car-label" text-anchor="middle">VIDRO</text>
+          <text x="150" y="255" class="car-label" text-anchor="middle">TETO</text>
+          <text x="150" y="342" class="car-label" text-anchor="middle">VIDRO</text>
+          <text x="150" y="400" class="car-label" text-anchor="middle" font-size="7">PORTA-MALAS</text>
+        </svg>
+      </div>
+      <div class="checklist-legend">
+        <span class="legend-item"><span class="legend-dot not-checked"></span> Não verificado</span>
+        <span class="legend-item"><span class="legend-dot ok"></span> OK</span>
+        <span class="legend-item"><span class="legend-dot avariado"></span> Avariado</span>
+      </div>
+    </div>
+    <div class="card">
+      <h2 class="section-title">📝 Resumo da Inspeção</h2>
+      <div id="checklistResumo" class="checklist-summary"></div>
+      <div class="form-group"><label>Observações Gerais</label><textarea id="obsGeral" placeholder="Observações adicionais..." rows="3"></textarea></div>
+      <button class="btn-primary" onclick="salvarChecklist()">💾 Salvar Checklist</button>
+    </div>
+    <div class="card">
+      <h2 class="section-title">📚 Checklists Salvos</h2>
+      <div id="checklistsSalvos" class="saved-list"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TAB: FOTOS ========== -->
+<section id="tabFotos" class="tab-content">
+  <div class="container">
+    <div class="card">
+      <h2 class="section-title">📸 Capturar Fotos</h2>
+      <p class="card-subtitle">Tire fotos do veículo para incluir no relatório</p>
+      <label for="cameraInput" class="camera-btn">📷 Tirar Foto / Selecionar<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none"></label>
+      <div class="form-group" style="margin-top:12px"><input type="text" id="fotoDescricao" placeholder="Descrição da foto (opcional)"></div>
+    </div>
+    <div class="card">
+      <h2 class="section-title">🖼️ Galeria de Fotos</h2>
+      <div id="galeriaFotos" class="photo-gallery"></div>
+      <p id="semFotos" class="empty-msg">Nenhuma foto capturada ainda</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TAB: DESPESAS ========== -->
+<section id="tabDespesas" class="tab-content">
+  <div class="container">
+    <div class="card">
+      <h2 class="section-title">💰 Nova Despesa</h2>
+      <form id="formDespesa">
+        <div class="form-group"><label>Categoria</label><select id="despTipo" required><option value="">Selecione...</option><option value="combustivel">⛽ Combustível</option><option value="pedagio">🛤️ Pedágio</option><option value="alimentacao">🍔 Alimentação</option><option value="manutencao">🔧 Manutenção</option><option value="pneu">🛞 Pneus</option><option value="lavagem">🧽 Lavagem</option><option value="outros">📦 Outros</option></select></div>
+        <div class="form-row"><div class="form-group"><label>Valor (R$)</label><input type="number" id="despValor" step="0.01" placeholder="0.00" required></div><div class="form-group"><label>Data</label><input type="date" id="despData" required></div></div>
+        <div class="form-group"><label>Descrição</label><input type="text" id="despDescricao" placeholder="Descrição da despesa"></div>
+        <button type="submit" class="btn-primary">➕ Adicionar Despesa</button>
+      </form>
+    </div>
+    <div class="card"><h2 class="section-title">📊 Resumo</h2><div id="despesasResumo" class="expense-summary"></div></div>
+    <div class="card"><h2 class="section-title">📃 Lista de Despesas</h2><div id="listaDespesas" class="expense-list"></div><p id="semDespesas" class="empty-msg">Nenhuma despesa registrada</p></div>
+  </div>
+</section>
+
+<!-- ========== TAB: GASOLINA & KM ========== -->
+<section id="tabGasolina" class="tab-content">
+  <div class="container">
+    <div class="dashboard-cards">
+      <div class="dash-card"><span class="dash-icon">⛽</span><div class="dash-info"><span class="dash-value" id="totalLitros">0 L</span><span class="dash-label">Total Litros</span></div></div>
+      <div class="dash-card"><span class="dash-icon">🛣️</span><div class="dash-info"><span class="dash-value" id="totalKm">0 km</span><span class="dash-label">KM Rodados</span></div></div>
+      <div class="dash-card"><span class="dash-icon">💲</span><div class="dash-info"><span class="dash-value" id="totalGasCusto">R$ 0</span><span class="dash-label">Custo Total</span></div></div>
+    </div>
+    <div class="card">
+      <h2 class="section-title">⛽ Registrar Abastecimento</h2>
+      <form id="formGasolina">
+        <div class="form-row">
+          <div class="form-group"><label>Data</label><input type="date" id="gasData" required></div>
+          <div class="form-group"><label>KM Atual</label><input type="number" id="gasKmAtual" placeholder="Ex: 125000" required></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Litros Abastecidos</label><input type="number" id="gasLitros" step="0.01" placeholder="Ex: 50.00" required></div>
+          <div class="form-group"><label>Preço por Litro (R$)</label><input type="number" id="gasPrecoLitro" step="0.001" placeholder="Ex: 5.89" required></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Valor Total (R$)</label><input type="number" id="gasValorTotal" step="0.01" placeholder="Calculado automaticamente" readonly></div>
+          <div class="form-group"><label>Tipo de Combustível</label>
+            <select id="gasTipo">
+              <option value="gasolina">⛽ Gasolina</option>
+              <option value="etanol">🌿 Etanol</option>
+              <option value="diesel">🔵 Diesel</option>
+              <option value="gnv">💨 GNV</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group"><label>Posto / Observação</label><input type="text" id="gasPosto" placeholder="Nome do posto ou observação"></div>
+        <button type="submit" class="btn-primary">➕ Registrar Abastecimento</button>
+      </form>
+    </div>
+    <div class="card">
+      <h2 class="section-title">📊 Eficiência por Abastecimento</h2>
+      <div id="gasEficiencia" class="gas-efficiency"></div>
+    </div>
+    <div class="card">
+      <h2 class="section-title">📃 Histórico de Abastecimentos</h2>
+      <div id="listaGasolina" class="expense-list"></div>
+      <p id="semGasolina" class="empty-msg">Nenhum abastecimento registrado</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TAB: RELATÓRIOS ========== -->
+<section id="tabRelatorios" class="tab-content">
+  <div class="container">
+    <div class="card">
+      <h2 class="section-title">📄 Gerar Relatórios PDF</h2>
+      <p class="card-subtitle">Selecione o tipo de relatório</p>
+      <div class="report-buttons">
+        <button class="report-btn" onclick="gerarPDFServicos()"><span class="report-icon">🚛</span><div><strong>Serviços</strong><small>Lista de serviços realizados</small></div></button>
+        <button class="report-btn" onclick="gerarPDFChecklist()"><span class="report-icon">📋</span><div><strong>Checklist</strong><small>Inspeção do veículo</small></div></button>
+        <button class="report-btn" onclick="gerarPDFFotos()"><span class="report-icon">📸</span><div><strong>Fotos</strong><small>Fotos do veículo em PDF</small></div></button>
+        <button class="report-btn" onclick="gerarPDFDespesas()"><span class="report-icon">💰</span><div><strong>Despesas</strong><small>Despesas e manutenção</small></div></button>
+        <button class="report-btn" onclick="gerarPDFGasolina()"><span class="report-icon">⛽</span><div><strong>Gasolina & KM</strong><small>Controle de combustível</small></div></button>
+        <button class="report-btn report-btn-full" onclick="gerarPDFCompleto()"><span class="report-icon">📑</span><div><strong>Relatório Completo</strong><small>Todos os dados em um PDF</small></div></button>
+      </div>
+    </div>
+    <div class="card dev-info-card">
+      <img src="logo-startweb.png" alt="StartWeb" class="dev-logo" onerror="this.style.display='none'">
+      <p class="dev-text">Desenvolvido por <strong>StartWeb</strong></p>
+      <p class="dev-text">Dev Responsável: <strong>Roberto Ursine</strong></p>
+      <p class="dev-text">📱 (11) 98285-6216</p>
+    </div>
+  </div>
+</section>
+
+<!-- Modal Checklist -->
+<div id="modalChecklist" class="modal">
+  <div class="modal-overlay" onclick="fecharModal()"></div>
+  <div class="modal-content">
+    <div class="modal-header"><h3 id="modalPartLabel">Parte</h3><button class="modal-close" onclick="fecharModal()">&times;</button></div>
+    <div class="modal-body">
+      <p>Selecione o estado:</p>
+      <div class="status-options">
+        <button class="status-btn ok" onclick="setPartStatus('ok')">✅ OK</button>
+        <button class="status-btn avariado" onclick="setPartStatus('avariado')">⚠️ Avariado</button>
+        <button class="status-btn limpar" onclick="setPartStatus('none')">🔄 Limpar</button>
+      </div>
+      <div class="form-group" style="margin-top:16px"><label>Observação</label><textarea id="modalObs" placeholder="Descreva o estado..." rows="2"></textarea></div>
+      <button class="btn-primary" onclick="salvarObsModal()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom Navigation -->
+<nav id="bottomNav">
+  <button class="nav-btn active" data-tab="tabInicio"><span class="nav-icon">🏠</span><span class="nav-label">Início</span></button>
+  <button class="nav-btn" data-tab="tabChecklist"><span class="nav-icon">📋</span><span class="nav-label">Checklist</span></button>
+  <button class="nav-btn" data-tab="tabFotos"><span class="nav-icon">📸</span><span class="nav-label">Fotos</span></button>
+  <button class="nav-btn" data-tab="tabDespesas"><span class="nav-icon">💰</span><span class="nav-label">Despesas</span></button>
+  <button class="nav-btn" data-tab="tabGasolina"><span class="nav-icon">⛽</span><span class="nav-label">KM/Gas</span></button>
+  <button class="nav-btn" data-tab="tabRelatorios"><span class="nav-icon">📄</span><span class="nav-label">Relatórios</span></button>
+</nav>
+
+<!-- Scripts -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="script.js"></script>
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("service-worker.js")
+      .then(() => console.log("SW registrado"))
+      .catch(err => console.error("Erro SW:", err));
+  }
+</script>
+</body>
+</html>
