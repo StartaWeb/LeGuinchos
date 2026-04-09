@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Le Guinchos - Controle de Serviços</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Responsividade para celular -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Manifesto PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#001f3f">
+
+  <!-- Ícone -->
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+</head>
+<body>
+  <header>
+    <h1>Le Guinchos</h1>
+  </header>
+
+  <main class="container">
+    <!-- Formulário CRUD -->
+    <form id="formServico">
+      <input type="text" id="cliente" placeholder="Nome do Cliente" required>
+      <input type="text" id="seguradora" placeholder="Seguradora" required>
+      <input type="datetime-local" id="horario" required>
+      <input type="number" id="valor" placeholder="Valor" required>
+      <input type="number" id="desconto" placeholder="Desconto (%)" required>
+
+      <!-- Novo campo: pedágio -->
+      <label for="pedagio">Pedágio:</label>
+      <select id="pedagio">
+        <option value="nao">Não</option>
+        <option value="sim">Sim</option>
+      </select>
+
+      <!-- Novo campo: valor do pedágio -->
+      <input type="number" id="valorPedagio" placeholder="Valor do Pedágio" value="0">
+
+      <button type="submit">Adicionar Serviço</button>
+    </form>
+
+    <!-- Lista de serviços -->
+    <h2>Serviços</h2>
+    <input type="text" id="pesquisa" placeholder="Pesquisar serviço...">
+
+    <div class="carrossel">
+      <table id="tabelaServicos">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Seguradora</th>
+            <th>Horário</th>
+            <th>Valor</th>
+            <th>Desconto</th>
+            <th>Pedágio</th>
+            <th>Valor Final</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <!-- Botões de relatório -->
+    <button id="btnRelatorio">Gerar Relatório</button>
+    <button id="btnPDF">Gerar Relatório em PDF</button>
+  </main>
+
+  <!-- Script principal -->
+  <script src="script.js"></script>
+
+  <!-- jsPDF e AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+  <!-- Registro do Service Worker -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js")
+        .then(() => console.log("Service Worker registrado"))
+        .catch(err => console.error("Erro no Service Worker:", err));
+    }
+  </script>
+</body>
+</html>
