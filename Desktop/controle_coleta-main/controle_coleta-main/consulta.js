@@ -56,28 +56,17 @@ async function editarColeta(id) {
       notaFiscal:      document.getElementById(`edit-notaFiscal-${id}`)?.value.trim(),
       observacao:      document.getElementById(`edit-observacao-${id}`)?.value.trim(),
     };
+    
+    // Remove campos indefinidos
     Object.keys(dados).forEach(k => dados[k] === undefined && delete dados[k]);
-    async function atualizarEtiqueta(id, dados) {
-  mostrarStatusConexao(true);
-  await db.collection('etiquetas').doc(id).update({
-    ...dados,
-    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
-  });
+    
+    await atualizarColeta(id, dados);
+    alert('✅ Coleta atualizada com sucesso!');
+  } catch (err) {
+    alert('❌ Erro ao editar: ' + err.message);
+  }
 }
 
-/**
- * Exclui uma coleta do Firestore pelo ID.
- */
-async function excluirColeta(id) {
-  await db.collection('coletas').doc(id).delete();
-}
-
-/**
- * Exclui um fechamento do Firestore pelo ID.
- */
-async function excluirFechamento(id) {
-  await db.collection('fechamentos').doc(id).delete();
-}
 
 function exibirColetas(lista) {
   const container = document.getElementById('listaColetas');
