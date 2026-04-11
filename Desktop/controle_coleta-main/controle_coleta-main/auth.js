@@ -58,17 +58,18 @@
       return;
     }
 
-    // Busca perfil no Firestore
+    // Busca perfil no Firestore por e-mail (pois Admins criam docs com ID aleatório)
     let perfil = 'consulta';
     let nome   = user.email;
     try {
-      const doc = await db.collection('usuarios').doc(user.uid).get();
-      if (doc.exists) {
-        perfil = doc.data().perfil || 'consulta';
-        nome   = doc.data().nome   || user.email;
+      const snap = await db.collection('usuarios').where('email', '==', user.email).get();
+      if (!snap.empty) {
+        const data = snap.docs[0].data();
+        perfil = data.perfil || 'consulta';
+        nome   = data.nome   || user.email;
       }
     } catch (e) {
-      console.warn('Perfil não encontrado — usando "consulta" por padrão.');
+      console.warn('Erro ao buscar perfil:', e);
     }
 
     // Controle de acesso dinâmico
