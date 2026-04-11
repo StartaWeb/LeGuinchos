@@ -57,11 +57,26 @@ async function editarColeta(id) {
       observacao:      document.getElementById(`edit-observacao-${id}`)?.value.trim(),
     };
     Object.keys(dados).forEach(k => dados[k] === undefined && delete dados[k]);
-    await atualizarColeta(id, dados);
-    alert('✅ Coleta atualizada com sucesso!');
-  } catch (err) {
-    alert('❌ Erro ao salvar: ' + err.message);
-  }
+    async function atualizarEtiqueta(id, dados) {
+  mostrarStatusConexao(true);
+  await db.collection('etiquetas').doc(id).update({
+    ...dados,
+    atualizadoEm: firebase.firestore.FieldValue.serverTimestamp()
+  });
+}
+
+/**
+ * Exclui uma coleta do Firestore pelo ID.
+ */
+async function excluirColeta(id) {
+  await db.collection('coletas').doc(id).delete();
+}
+
+/**
+ * Exclui um fechamento do Firestore pelo ID.
+ */
+async function excluirFechamento(id) {
+  await db.collection('fechamentos').doc(id).delete();
 }
 
 function exibirColetas(lista) {
@@ -73,6 +88,8 @@ function exibirColetas(lista) {
     return;
   }
 
+  const podeEditarColeta = ['admin', 'expedicao'].includes(window._perfilUsuario);
+
   lista.forEach(coleta => {
     const div = document.createElement('div');
     div.className = 'coleta-card';
@@ -80,7 +97,6 @@ function exibirColetas(lista) {
 
     const statusCor  = coleta.status === 'Realizada' ? '#4caf50' : '#f50057';
     const statusIcon = coleta.status === 'Realizada' ? '✅' : '🕐';
-    const isAdmin = window._perfilUsuario === 'admin';
 
     div.innerHTML = `
       <h3 style="color:#2e103b; margin-bottom:4px;">${coleta.numeroColeta || '-'}</h3>
@@ -96,9 +112,10 @@ function exibirColetas(lista) {
       <p><strong>Status:</strong> <span style="color:${statusCor}; font-weight:700;">${statusIcon} ${coleta.status || '-'}</span></p>
       <p><strong>Retirante:</strong> ${coleta.retirante || '-'}</p>
       <p><strong>Data da Retirada:</strong> ${coleta.dataRetirada || '-'}</p>
-      ${isAdmin ? `<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
-        <button class="btn-editar" onclick="habilitarEdicao('${coleta._id}')">&#9999;&#65039; Editar</button>
-        <button class="btn-salvar" style="display:none" onclick="editarColeta('${coleta._id}')">&#128190; Salvar Alterações</button>
+      ${podeEditarColeta ? `<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+        <button class="btn-editar"  onclick="habilitarEdicao('${coleta._id}')">&#9999;&#65039; Editar</button>
+        <button class="btn-excluir" onclick="excluirColetaUI('${coleta._id}')">🗑️ Excluir</button>
+        <button class="btn-salvar"  style="display:none" onclick="editarColeta('${coleta._id}')">&#128190; Salvar Alterações</button>
       </div>` : ''}
     `;
     container.appendChild(div);
@@ -120,6 +137,18 @@ function filtrarColetas() {
   });
 
   exibirColetas(filtradas);
+}
+
+const podeEditarColeta = ['admin', 'expedicao'].includes(window._perfilUsuario);
+
+async function excluirColetaUI(id) {
+  if (!confirm('⚠️ Deseja realmente excluir esta coleta?')) return;
+  try {
+    await excluirColeta(id);
+    alert('✅ Coleta excluída!');
+  } catch (err) {
+    alert('❌ Erro: ' + err.message);
+  }
 }
 
 function exportarParaCSV() {
@@ -154,7 +183,7 @@ function exibirEtiquetas(lista) {
     return;
   }
 
-  const isAdmin = window._perfilUsuario === 'admin';
+  const podeGerenciarEtiquetas = ['admin', 'expedicao'].includes(window._perfilUsuario);
 
   lista.forEach(et => {
     const div = document.createElement('div');
@@ -165,7 +194,7 @@ function exibirEtiquetas(lista) {
       ? et.caixas.map((c, i) => `Caixa ${i + 1}: ${c} produtos`).join(' | ')
       : '-';
 
-    const botoesAdmin = isAdmin ? `
+    const botoesAdmin = podeGerenciarEtiquetas ? `
       <button class="btn-editar"     onclick="abrirModalEtiqueta(${JSON.stringify(et).replace(/"/g, '&quot;')})">✏️ Editar</button>
       <button class="btn-reimprimir" onclick="reimprimirEtiqueta(${JSON.stringify(et).replace(/"/g, '&quot;')})">🖨️ Reimprimir</button>
       <button class="btn-excluir"    onclick="excluirEtiquetaUI('${et._id}')">🗑️ Excluir</button>
@@ -384,6 +413,8 @@ function exibirFechamentosAprovados(lista) {
       </div>
     `;
 
+    const isAdmin = window._perfilUsuario === 'admin';
+
     div.innerHTML = `
       <div class="card-fechamento-grid">
         <div class="fechamento-info">
@@ -396,6 +427,11 @@ function exibirFechamentosAprovados(lista) {
           <p><strong>KG:</strong> ${f.kg != null ? f.kg + ' kg' : '-'}</p>
           <p><strong>Pagamento:</strong> ${pagLabel} - <strong>Campanha:</strong> ${f.campanha === 'sim' ? 'SIM' : 'NÃO'}</p>
           <p><strong>Envio:</strong> ${envioLabel}</p>
+          ${isAdmin ? `
+            <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="btn-excluir" style="padding:4px 12px; font-size:11px;" onclick="excluirFechamentoUI('${f._id}')">🗑️ Remover Registro</button>
+            </div>
+          ` : ''}
         </div>
         ${thumbnailHtml}
       </div>
@@ -417,6 +453,16 @@ function abrirModalImagem(src, orcamento) {
 
 function fecharModalImagem() {
   document.getElementById('modal-imagem').style.display = 'none';
+}
+
+async function excluirFechamentoUI(id) {
+  if (!confirm('⚠️ Deseja remover este registro de fechamento aprovado?')) return;
+  try {
+    await excluirFechamento(id);
+    alert('✅ Registro removido!');
+  } catch (err) {
+    alert('❌ Erro: ' + err.message);
+  }
 }
 
 function filtrarFechamentos() {
