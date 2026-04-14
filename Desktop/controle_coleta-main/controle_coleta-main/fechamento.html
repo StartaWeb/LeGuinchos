@@ -101,6 +101,43 @@
       margin-top: 12px;
       display: none;
     }
+    .upload-gallery-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .preview-item {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      aspect-ratio: 1/1;
+      border: 1px solid rgba(0,0,0,0.1);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    .preview-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .btn-remove-img {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: rgba(244,67,54,0.85);
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+    .btn-remove-img:hover { background: #f44336; transform: scale(1.1); }
     .btn-enviar {
       width: 100%;
       padding: 16px;
@@ -116,10 +153,25 @@
       transition: all 0.3s ease;
       letter-spacing: 0.3px;
     }
-    .btn-enviar:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 24px rgba(156,39,176,0.4);
+    .btn-enviar:hover { background: #7b1fa2; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(156,39,176,0.3); }
+
+    .status-devolvido {
+      display: none;
+      background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+      border: 1px solid #ffb74d;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 12px rgba(255,152,0,0.1);
+      animation: slideDown 0.4s ease;
     }
+    @keyframes slideDown {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .status-devolvido h3 { color: #e65100; margin-bottom: 6px; font-size: 16px; display: flex; align-items: center; gap: 8px; margin-top:0; }
+    .status-devolvido p { color: #bf360c; font-size: 14px; font-weight: 500; margin: 0; }
+    
     .btn-buscar {
       padding: 12px 22px;
       font-size: 15px;
@@ -340,8 +392,16 @@
       <input type="number" id="valorFrete" min="0" step="0.01" placeholder="0,00">
     </div>
     <div id="transportadoraWrap" style="display:none; margin-top:14px;">
-      <label>Nome da Transportadora</label>
-      <input type="text" id="nomeTransportadora" placeholder="Qual transportadora?">
+      <div style="display:grid; grid-template-columns: 2fr 1fr; gap:12px;">
+        <div>
+          <label>Nome da Transportadora</label>
+          <input type="text" id="nomeTransportadora" placeholder="Qual transportadora?">
+        </div>
+        <div>
+          <label>Código Transp.</label>
+          <input type="text" id="codigoTransportadora" placeholder="Ex: 502">
+        </div>
+      </div>
     </div>
   </div>
 
@@ -356,8 +416,8 @@
       <p style="font-weight:600; color:#6a1b9a; margin:8px 0 4px;">Clique para selecionar imagem</p>
       <p style="font-size:12px; color:#a0aec0;">JPG, PNG, WEBP até 5MB</p>
     </label>
-    <input type="file" id="inputAnexo" accept="image/*">
-    <img id="previewAnexo" class="upload-preview" alt="Preview">
+    <input type="file" id="inputAnexo" accept="image/*" multiple>
+    <div id="uploadGallery" class="upload-gallery-container"></div>
   </div>
 
   <!-- ── Enviar ── -->
@@ -428,6 +488,7 @@
       }
     }
 
+
     function preencherDadosImportados(et) {
       document.getElementById('nomeClienteDisplay').textContent = et.cliente || '—';
       document.getElementById('orcamentoDisplay').textContent = et.nf || '—';
@@ -447,23 +508,38 @@
       }
     }
 
-    // ── Preview de imagem ──
+    // ── Previsualização de imagens ──
+    let _imagensBase64Cache = [];
+
     document.addEventListener('DOMContentLoaded', () => {
       setupRadioPills('grupoPagamento', 'pagamento');
       setupRadioPills('grupoCampanha', 'campanha');
       setupRadioPills('grupoEnvio', 'envio');
 
-      document.getElementById('inputAnexo').addEventListener('change', function () {
-        const file = this.files[0];
-        if (!file) return;
-        if (file.size > 5 * 1024 * 1024) { alert('Imagem muito grande. Máximo 5MB.'); return; }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = document.getElementById('previewAnexo');
-          img.src = e.target.result;
-          img.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+      document.getElementById('inputAnexo').addEventListener('change', async function () {
+        const files = Array.from(this.files);
+        if (!files.length) return;
+
+        // Limite de 5 imagens para não estourar o limite do Firestore (1MB por doc)
+        if (_imagensBase64Cache.length + files.length > 5) {
+          alert('Limite máximo de 5 imagens atingido.');
+          return;
+        }
+
+        for (const file of files) {
+          if (file.size > 5 * 1024 * 1024) { 
+            alert(`A imagem ${file.name} é muito grande. Máximo 5MB por foto.`); 
+            continue; 
+          }
+          try {
+            const base64 = await lerArquivoBase64(file);
+            _imagensBase64Cache.push(base64);
+          } catch (err) {
+            console.error('Erro ao processar imagem:', err);
+          }
+        }
+        renderGallery();
+        this.value = ''; // Limpa o input para permitir selecionar os mesmos arquivos novamente se removidos
       });
 
       // Escutar meus fechamentos após auth pronto
@@ -478,11 +554,43 @@
       });
     });
 
+    function renderGallery() {
+      const container = document.getElementById('uploadGallery');
+      container.innerHTML = '';
+      _imagensBase64Cache.forEach((img, index) => {
+        const div = document.createElement('div');
+        div.className = 'preview-item';
+        div.innerHTML = `
+          <img src="${img}" alt="Preview ${index + 1}">
+          <button class="btn-remove-img" onclick="removeImage(${index})">✕</button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function removeImage(index) {
+      _imagensBase64Cache.splice(index, 1);
+      renderGallery();
+    }
+
     // ── Enviar para aprovação ──
     async function enviarFechamento() {
       const codigoCliente = document.getElementById('codigoCliente').value.trim();
       if (!codigoCliente) { alert('Informe o código do cliente.'); return; }
       if (!etiquetaImportada) { alert('Busque e importe uma etiqueta antes de enviar.'); return; }
+
+      // Bloquear se já existir um fechamento para este orçamento (e não for edição)
+      if (!_fechamentoEdicaoId) {
+        try {
+          const existe = await checarFechamentoExistente(etiquetaImportada.nf);
+          if (existe) {
+            alert(`Já existe um fechamento (aguardando ou aprovado) para o orçamento/NF ${etiquetaImportada.nf}.`);
+            return;
+          }
+        } catch (e) {
+          console.warn('Erro ao validar duplicidade de fechamento:', e);
+        }
+      }
 
       const pagamentoEl = document.querySelector('input[name="pagamento"]:checked');
       if (!pagamentoEl) { alert('Selecione a forma de pagamento.'); return; }
@@ -498,27 +606,19 @@
       const numParcelas = parseInt(document.getElementById('numParcelas').value) || 1;
       const valorFrete  = parseFloat(document.getElementById('valorFrete').value) || 0;
       const nomeTransportadora = document.getElementById('nomeTransportadora').value.trim();
+      const codigoTransportadora = document.getElementById('codigoTransportadora').value.trim();
       const user = firebase.auth().currentUser;
 
       // Validações
-      if (envio === 'transportadora' && !nomeTransportadora) {
-        alert('Informe o nome da transportadora.'); return;
+      if (envio === 'transportadora') {
+        if (!nomeTransportadora) { alert('Informe o nome da transportadora.'); return; }
+        if (!codigoTransportadora) { alert('Informe o código da transportadora.'); return; }
       }
       if ((envio === 'correios' || envio === 'sedex') && valorFrete <= 0) {
         alert('Informe o valor do frete válido e superior a zero.'); return;
       }
 
-      // Processar imagem como base64, se houver
-      let imagemBase64 = null;
-      const inputAnexo = document.getElementById('inputAnexo');
-      if (inputAnexo.files[0] && (pagamento === 'pix' || pagamento === 'cartao')) {
-        imagemBase64 = await lerArquivoBase64(inputAnexo.files[0]);
-      } else if (_fechamentoEdicaoId) {
-        const imgEl = document.getElementById('previewAnexo');
-        if (imgEl.src && imgEl.style.display !== 'none' && imgEl.src.startsWith('data:')) {
-           imagemBase64 = imgEl.src;
-        }
-      }
+      // Imagens já estão no _imagensBase64Cache (array)
 
       const dados = {
         uid: user.uid,
@@ -537,8 +637,9 @@
         envio,
         valorFrete: (envio === 'sedex' || envio === 'correios') ? valorFrete : null,
         nomeTransportadora: (envio === 'transportadora') ? nomeTransportadora : null,
+        codigoTransportadora: (envio === 'transportadora') ? codigoTransportadora : null,
         campanha: campanhaEl.value,
-        imagemBase64,
+        imagensBase64: _imagensBase64Cache, // Agora é um array
         etiquetaId: etiquetaImportada._id
       };
 
@@ -556,8 +657,8 @@
         document.querySelector('.btn-enviar').textContent = '🚀 Enviar para Aprovação';
         document.getElementById('buscaNF').value = '';
         document.getElementById('codigoCliente').value = '';
-        document.getElementById('previewAnexo').style.display = 'none';
-        document.getElementById('previewAnexo').src = '';
+        _imagensBase64Cache = [];
+        renderGallery();
         document.getElementById('inputAnexo').value = '';
         ['nomeClienteDisplay','orcamentoDisplay','totalCaixasDisplay','kgDisplay','dimensoesDisplay','representanteDisplay'].forEach(id => {
           document.getElementById(id).textContent = '—';
@@ -569,6 +670,7 @@
         document.getElementById('transportadoraWrap').style.display = 'none';
         document.getElementById('secaoAnexo').style.display = 'none';
         document.getElementById('nomeTransportadora').value = '';
+        document.getElementById('codigoTransportadora').value = '';
         document.getElementById('valorFrete').value = '';
         document.getElementById('numParcelas').value = '';
         etiquetaImportada = null;
@@ -663,6 +765,7 @@
          eRadio.dispatchEvent(new Event('change'));
          if (f.valorFrete) document.getElementById('valorFrete').value = f.valorFrete;
          if (f.nomeTransportadora) document.getElementById('nomeTransportadora').value = f.nomeTransportadora;
+         if (f.codigoTransportadora) document.getElementById('codigoTransportadora').value = f.codigoTransportadora;
       }
 
       // Setar campanha
@@ -672,10 +775,13 @@
          cRadio.dispatchEvent(new Event('change'));
       }
 
-      if (f.imagemBase64) {
-         const img = document.getElementById('previewAnexo');
-         img.src = f.imagemBase64;
-         img.style.display = 'block';
+      if (f.imagensBase64 && f.imagensBase64.length > 0) {
+         _imagensBase64Cache = [...f.imagensBase64];
+         renderGallery();
+      } else if (f.imagemBase64) {
+         // Compatibilidade com registros antigos
+         _imagensBase64Cache = [f.imagemBase64];
+         renderGallery();
       }
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -713,7 +819,25 @@
           ? `<button onclick="carregarParaEdicao('${f._id}')" style="margin-top:10px; padding:8px 16px; font-weight:700; background:linear-gradient(135deg, #ff9800, #f57c00); color:#fff; border:none; border-radius:8px; cursor:pointer; box-shadow: 0 4px 10px rgba(255,152,0,0.3);">✏️ Corrigir Fechamento</button>` : '';
 
         const pagLabel = { pix: 'PIX', cartao: `Cartão (${f.numParcelas || 1}x)`, boleto: `Boleto (${f.numParcelas || 1}x)` }[f.pagamento] || f.pagamento;
-        const envioLabel = { correios: `Correios (Frete: R$${(f.valorFrete||0).toFixed(2)})`, sedex: `SEDEX (Frete: R$${(f.valorFrete||0).toFixed(2)})`, transportadora: `Transportadora (${f.nomeTransportadora || 'N/A'})` }[f.envio] || f.envio;
+        
+        const transportadoraFmt = f.nomeTransportadora 
+          ? `${f.nomeTransportadora}${f.codigoTransportadora ? ' (Cód: ' + f.codigoTransportadora + ')' : ''}`
+          : (f.nomeTransportadora || 'N/A');
+
+        const envioLabel = { 
+          correios: `Correios (Frete: R$${(f.valorFrete||0).toFixed(2)})`, 
+          sedex: `SEDEX (Frete: R$${(f.valorFrete||0).toFixed(2)})`, 
+          transportadora: `Transportadora (${transportadoraFmt})` 
+        }[f.envio] || f.envio;
+
+        // Miniaturas
+        const ims = f.imagensBase64 || (f.imagemBase64 ? [f.imagemBase64] : []);
+        const imsHtml = ims.length > 0 
+          ? `<div style="display:flex; gap:6px; margin-top:8px; overflow-x:auto; padding-bottom:4px;">
+              ${ims.map(img => `<img src="${img}" style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #eee;">`).join('')}
+             </div>`
+          : '';
+
         return `
           <div class="fechamento-card ${f.status}">
             <div class="fc-header">
@@ -726,6 +850,7 @@
               Envio: <strong>${envioLabel}</strong> &nbsp;|&nbsp;
               Campanha: <strong>${f.campanha === 'sim' ? 'SIM' : 'NÃO'}</strong>
             </p>
+            ${imsHtml}
             ${obsHtml}
             ${btnCortigir}
           </div>

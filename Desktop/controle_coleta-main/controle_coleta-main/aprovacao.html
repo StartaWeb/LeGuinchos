@@ -86,6 +86,28 @@
       border: 1px solid rgba(0,0,0,0.1);
       margin: 14px 0;
       display: block;
+      cursor: zoom-in;
+    }
+    .imagem-gallery-container {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin: 14px 0;
+    }
+    .imagem-gallery-item {
+      width: 120px;
+      height: 120px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid rgba(0,0,0,0.1);
+      cursor: zoom-in;
+      transition: transform 0.2s ease;
+    }
+    .imagem-gallery-item:hover { transform: scale(1.05); }
+    .imagem-gallery-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
     }
     .dim-badge {
       display: inline-block;
@@ -222,6 +244,13 @@
 
   <div class="apr-container" id="listaAprovacao"></div>
 
+  <!-- Modal para ver imagem em tela cheia (mesmo do consulta.html) -->
+  <div id="modal-imagem" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; align-items:center; justify-content:center; flex-direction:column;">
+    <span onclick="fecharModalImagem()" style="position:absolute; top:20px; right:30px; color:#fff; font-size:40px; font-weight:700; cursor:pointer;">&times;</span>
+    <img id="img-full" style="max-width:90%; max-height:80%; border-radius:8px; box-shadow:0 0 20px rgba(0,0,0,0.5);">
+    <div id="img-caption" style="color:#eee; margin-top:15px; font-size:18px; font-weight:600;"></div>
+  </div>
+
   <div id="semPendencias">
     <div class="ic">🎉</div>
     <p>Nenhum pedido aguardando aprovação.<br>Tudo em dia!</p>
@@ -271,7 +300,7 @@
         const envioLabel = {
           correios: '📮 Correios',
           sedex: `🚀 SEDEX (R$ ${(f.valorFrete || 0).toFixed(2)})`,
-          transportadora: '🚚 Transportadora'
+          transportadora: `🚚 Transportadora${f.nomeTransportadora ? ': ' + f.nomeTransportadora : ''}${f.codigoTransportadora ? ' (Cód: ' + f.codigoTransportadora + ')' : ''}`
         }[f.envio] || f.envio;
 
         const campanhaHtml = f.campanha === 'sim'
@@ -284,9 +313,18 @@
             ).join('')
           : '<span style="color:#a0aec0;">—</span>';
 
-        const imagemHtml = f.imagemBase64
-          ? `<img class="imagem-comprovante" src="${f.imagemBase64}" alt="Comprovante">`
-          : '';
+        // Galeria de imagens
+        let imagensHtml = '';
+        const ims = f.imagensBase64 || (f.imagemBase64 ? [f.imagemBase64] : []);
+        if (ims.length > 0) {
+          imagensHtml = `<div class="imagem-gallery-container">
+            ${ims.map(img => `
+              <div class="imagem-gallery-item" onclick="abrirModalImagem('${img}', '${f.orcamento}')">
+                <img src="${img}" alt="Comprovante">
+              </div>
+            `).join('')}
+          </div>`;
+        }
 
         const dataFmt = f.criadoEm?.toDate
           ? f.criadoEm.toDate().toLocaleString('pt-BR')
@@ -341,7 +379,7 @@
               <div style="margin-top:6px;">${dimensoesHtml}</div>
             </div>
 
-            ${imagemHtml}
+            ${imagensHtml}
 
             <div class="acoes-row" id="acoes-${f._id}">
               <button class="btn-aprovar" onclick="aprovar('${f._id}')">✅ Aprovar</button>
@@ -362,12 +400,23 @@
     }
 
     async function aprovar(id) {
+      if (!id) { console.error('ID do fechamento não fornecido.'); return; }
       if (!confirm('Confirmar aprovação deste fechamento?')) return;
+      
+      // Capturar o botão que foi clicado
+      const btn = event.currentTarget;
+      const originalText = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = '⌛...';
+
       try {
         await atualizarFechamento(id, { status: 'aprovado', obs: null });
-        // O listener removerá o card automaticamente
+        console.log(`Fechamento ${id} aprovado com sucesso.`);
       } catch (err) {
+        console.error('Erro ao aprovar fechamento:', err);
         alert('Erro ao aprovar: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = originalText;
       }
     }
 
@@ -379,6 +428,21 @@
       } catch (err) {
         alert('Erro ao devolver: ' + err.message);
       }
+    }
+
+    function abrirModalImagem(src, orcamento) {
+      if (!src) { alert('Este fechamento não possui imagem anexa.'); return; }
+      const modal = document.getElementById('modal-imagem');
+      const img = document.getElementById('img-full');
+      const caption = document.getElementById('img-caption');
+      
+      img.src = src;
+      caption.textContent = `Comprovante - Orçamento ${orcamento}`;
+      modal.style.display = 'flex';
+    }
+
+    function fecharModalImagem() {
+      document.getElementById('modal-imagem').style.display = 'none';
     }
   </script>
 

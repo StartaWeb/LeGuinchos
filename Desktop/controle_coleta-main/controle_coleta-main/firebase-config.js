@@ -307,3 +307,51 @@ async function buscarEtiquetaPorNF(nf) {
   const doc = snapshot.docs[0];
   return { _id: doc.id, ...doc.data() };
 }
+
+/**
+ * Verifica se já existe uma etiqueta com o número de NF/Orçamento informado.
+ */
+async function checarNFExistente(nf) {
+  if (!nf) return false;
+  mostrarStatusConexao(true);
+  
+  // Busca por string
+  const snapshotStr = await db.collection('etiquetas')
+    .where('nf', '==', String(nf))
+    .limit(1).get();
+  if (!snapshotStr.empty) return true;
+
+  // Busca por number (caso existam registros antigos assim)
+  if (!isNaN(nf)) {
+    const snapshotNum = await db.collection('etiquetas')
+      .where('nf', '==', Number(nf))
+      .limit(1).get();
+    if (!snapshotNum.empty) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Verifica se já existe um fechamento (pendente ou aprovado) para o orçamento/NF.
+ */
+async function checarFechamentoExistente(orcamento) {
+  if (!orcamento) return false;
+  mostrarStatusConexao(true);
+
+  // Busca por string
+  const snapshotStr = await db.collection('fechamentos')
+    .where('orcamento', '==', String(orcamento))
+    .limit(1).get();
+  if (!snapshotStr.empty) return true;
+
+  // Busca por number
+  if (!isNaN(orcamento)) {
+    const snapshotNum = await db.collection('fechamentos')
+      .where('orcamento', '==', Number(orcamento))
+      .limit(1).get();
+    if (!snapshotNum.empty) return true;
+  }
+
+  return false;
+}

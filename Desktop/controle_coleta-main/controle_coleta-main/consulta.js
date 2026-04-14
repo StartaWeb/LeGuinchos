@@ -392,12 +392,27 @@ function exibirFechamentosAprovados(lista) {
     div.style.borderLeftColor = '#4caf50'; // aprovado (verde)
 
     const pagLabel = { pix: 'PIX', cartao: `Cartão (${f.numParcelas || 1}x)`, boleto: `Boleto (${f.numParcelas || 1}x)` }[f.pagamento] || f.pagamento;
-    const envioLabel = { correios: `Correios (Frete: R$${(f.valorFrete||0).toFixed(2)})`, sedex: `SEDEX (Frete: R$${(f.valorFrete||0).toFixed(2)})`, transportadora: `Transportadora (${f.nomeTransportadora || 'N/A'})` }[f.envio] || f.envio;
+    
+    const transportadoraFmt = f.nomeTransportadora 
+      ? `${f.nomeTransportadora}${f.codigoTransportadora ? ' (Cód: ' + f.codigoTransportadora + ')' : ''}`
+      : (f.nomeTransportadora || 'N/A');
 
+    const envioLabel = { 
+      correios: `Correios (Frete: R$${(f.valorFrete||0).toFixed(2)})`, 
+      sedex: `SEDEX (Frete: R$${(f.valorFrete||0).toFixed(2)})`, 
+      transportadora: `Transportadora (${transportadoraFmt})` 
+    }[f.envio] || f.envio;
+
+    // Galeria de miniaturas
+    const ims = f.imagensBase64 || (f.imagemBase64 ? [f.imagemBase64] : []);
     let thumbnailHtml = `
-      <div class="fechamento-thumbnail-wrapper" onclick="abrirModalImagem('${f.imagemBase64 || ''}', '${f.orcamento || ''}')">
-        ${f.imagemBase64 
-          ? `<img src="${f.imagemBase64}" alt="Comprovante">` 
+      <div class="fechamento-thumbnail-wrapper">
+        ${ims.length > 0 
+          ? ims.map(img => `
+              <div class="fechamento-thumbnail-item" onclick="abrirModalImagem('${img}', '${f.orcamento || ''}')">
+                <img src="${img}" alt="Comprovante">
+              </div>
+            `).join('')
           : `<div class="fechamento-no-image">📷</div>`}
       </div>
     `;
@@ -473,7 +488,7 @@ function exportarFechamentosCSV() {
     return;
   }
 
-  const campos = ['orcamento','codigoCliente','cliente','nomeOperador','representante','totalCaixas','kg','pagamento','numParcelas','envio','nomeTransportadora','valorFrete','campanha','tipoDoc','dimensoes'];
+  const campos = ['orcamento','codigoCliente','cliente','nomeOperador','representante','totalCaixas','kg','pagamento','numParcelas','envio','nomeTransportadora','codigoTransportadora','valorFrete','campanha','tipoDoc','dimensoes'];
   const cabecalho = campos.join(';');
   const linhas    = _fechamentosCache.map(f => campos.map(k => {
     let val = f[k] !== undefined && f[k] !== null ? f[k] : '';

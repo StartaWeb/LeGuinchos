@@ -153,6 +153,14 @@
       const wrap        = document.getElementById("etiquetas");
       wrap.innerHTML    = "";
 
+      if (nf) {
+        const existe = await checarNFExistente(nf);
+        if (existe) {
+          alert(`O número de ${tipoDoc === "nf" ? "NF" : "Orçamento"} ${nf} já está cadastrado no sistema.`);
+          return;
+        }
+      }
+
       const kg          = parseFloat(document.getElementById("kg").value) || 0;
 
       let caixasValidas = 0;
