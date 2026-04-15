@@ -105,6 +105,7 @@ function exibirColetas(lista) {
       <p><strong>Status:</strong> <span style="color:${statusCor}; font-weight:700;">${statusIcon} ${coleta.status || '-'}</span></p>
       <p><strong>Retirante:</strong> <span id="retirante-texto-${coleta._id}">${coleta.retirante || '-'}</span></p>
       <p><strong>Data da Retirada:</strong> <span id="dataRetirada-texto-${coleta._id}">${coleta.dataRetirada || '-'}</span></p>
+      ${coleta.confirmadoPor ? `<p><strong>Confirmado por:</strong> ${coleta.confirmadoPor}</p>` : ''}
       
       ${coleta.status !== 'Realizada' ? `
         <div id="area-confirmar-${coleta._id}" style="margin-top:15px; padding-top:12px; border-top:1px dashed #cbd5e1;">
