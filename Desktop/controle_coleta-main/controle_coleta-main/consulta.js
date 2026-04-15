@@ -61,6 +61,9 @@ async function editarColeta(id) {
     Object.keys(dados).forEach(k => dados[k] === undefined && delete dados[k]);
     
     await atualizarColeta(id, dados);
+    if (window._perfilUsuario === 'expedicao') {
+      await registrarLog(window._nomeUsuario, 'Editou coleta', id, { cliente: dados.cliente });
+    }
     alert('✅ Coleta atualizada com sucesso!');
   } catch (err) {
     alert('❌ Erro ao editar: ' + err.message);
@@ -78,6 +81,7 @@ function exibirColetas(lista) {
   }
 
   const podeEditarColeta = ['admin', 'expedicao'].includes(window._perfilUsuario);
+  const isWhatsapp = window._perfilUsuario === 'whatsapp';
 
   lista.forEach(coleta => {
     const div = document.createElement('div');
@@ -99,9 +103,20 @@ function exibirColetas(lista) {
       <p><strong>Prazo:</strong> ${coleta.prazo || '-'}</p>
       <p><strong>Agendada em:</strong> ${coleta.dataHoraAgendamento || '-'}</p>
       <p><strong>Status:</strong> <span style="color:${statusCor}; font-weight:700;">${statusIcon} ${coleta.status || '-'}</span></p>
-      <p><strong>Retirante:</strong> ${coleta.retirante || '-'}</p>
-      <p><strong>Data da Retirada:</strong> ${coleta.dataRetirada || '-'}</p>
-      ${podeEditarColeta ? `<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:10px;">
+      <p><strong>Retirante:</strong> <span id="retirante-texto-${coleta._id}">${coleta.retirante || '-'}</span></p>
+      <p><strong>Data da Retirada:</strong> <span id="dataRetirada-texto-${coleta._id}">${coleta.dataRetirada || '-'}</span></p>
+      
+      ${coleta.status !== 'Realizada' ? `
+        <div id="area-confirmar-${coleta._id}" style="margin-top:15px; padding-top:12px; border-top:1px dashed #cbd5e1;">
+          <label style="font-size:12px; font-weight:700; color:#4a5568;">Nome do Retirante:</label>
+          <div style="display:flex; gap:8px; margin-top:4px;">
+            <input type="text" id="retirante-input-${coleta._id}" placeholder="Quem está retirando?" style="margin:0; flex:1;">
+            <button class="btn-salvar" onclick="confirmarRetiradaUI('${coleta._id}')" style="margin:0; padding:8px 16px;">✅ Confirmar</button>
+          </div>
+        </div>
+      ` : ''}
+
+      ${podeEditarColeta && !isWhatsapp ? `<div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:15px;">
         <button class="btn-editar"  onclick="habilitarEdicao('${coleta._id}')">&#9999;&#65039; Editar</button>
         <button class="btn-excluir" onclick="excluirColetaUI('${coleta._id}')">🗑️ Excluir</button>
         <button class="btn-salvar"  style="display:none" onclick="editarColeta('${coleta._id}')">&#128190; Salvar Alterações</button>
@@ -130,10 +145,41 @@ function filtrarColetas() {
 
 const podeEditarColeta = ['admin', 'expedicao'].includes(window._perfilUsuario);
 
+async function confirmarRetiradaUI(id) {
+  const nome = document.getElementById(`retirante-input-${id}`).value.trim();
+  if (!nome) { alert('Por favor, informe o nome de quem está retirando.'); return; }
+
+  if (!confirm(`Confirmar retirada para: ${nome}?`)) return;
+
+  try {
+    const agora = new Date();
+    const dataFormatada = agora.toLocaleString('pt-BR');
+    
+    await db.collection('coletas').doc(id).update({
+      status: 'Realizada',
+      retirante: nome,
+      dataRetirada: dataFormatada,
+      confirmadoPor: window._nomeUsuario || 'Sistema',
+      dataConfirmacao: agora
+    });
+    if (window._perfilUsuario === 'expedicao') {
+      await registrarLog(window._nomeUsuario, 'Confirmou retirada', id, { retirante: nome });
+    }
+
+    alert('✅ Retirada confirmada com sucesso!');
+    // A atualização em tempo real do listener deve cuidar do resto
+  } catch (err) {
+    alert('❌ Erro ao confirmar retirada: ' + err.message);
+  }
+}
+
 async function excluirColetaUI(id) {
   if (!confirm('⚠️ Deseja realmente excluir esta coleta?')) return;
   try {
     await excluirColeta(id);
+    if (window._perfilUsuario === 'expedicao') {
+      await registrarLog(window._nomeUsuario, 'Excluiu coleta', id);
+    }
     alert('✅ Coleta excluída!');
   } catch (err) {
     alert('❌ Erro: ' + err.message);
@@ -189,10 +235,15 @@ function exibirEtiquetas(lista) {
       <button class="btn-excluir"    onclick="excluirEtiquetaUI('${et._id}')">🗑️ Excluir</button>
     ` : '';
 
+    const statusEtiqueta = et.status === 'aprovado' 
+      ? `<span style="background:#4caf50; color:#fff; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:700; margin-left:10px;">✅ APROVADO</span>`
+      : '';
+
     div.innerHTML = `
-      <h3 style="color:#6a1b9a;">🏷️ Etiqueta — ${et.nf || '-'}</h3>
+      <h3 style="color:#6a1b9a;">🏷️ Etiqueta — ${et.nf || '-'} ${statusEtiqueta}</h3>
       <p><strong>Cliente:</strong> ${et.cliente || '-'}</p>
       <p><strong>NF / Orçamento:</strong> ${et.nf || '-'} (${et.tipoDoc === 'nf' ? 'Nota Fiscal' : 'Orçamento'})</p>
+      ${et.nfFinal ? `<p style="color:#2e7d32;"><strong>NF Final (Aprovada):</strong> ${et.nfFinal}</p>` : ''}
       <p><strong>Data:</strong> ${et.data || '-'}</p>
       <p><strong>${et.entregaTipo === 'transportadora' ? 'Transportadora' : 'Representante'}:</strong> ${et.transportadora || '-'}</p>
       <p><strong>Total de produtos:</strong> ${et.totalProdutos || '-'}</p>
@@ -226,13 +277,19 @@ function abrirModalEtiqueta(et) {
   document.getElementById('modal-data').value         = et.data         || '';
   document.getElementById('modal-tipoEntrega').value  = et.entregaTipo  || 'transportadora';
   document.getElementById('modal-transportadora').value = et.transportadora || '';
+  document.getElementById('modal-kg').value            = et.kg            || '';
   atualizarLabelEntrega();
+  atualizarModalRotuloNf();
 
   // Popula caixas
   const listaCaixas = document.getElementById('modal-caixas-lista');
   listaCaixas.innerHTML = '';
   const caixas = Array.isArray(et.caixas) ? et.caixas : [];
-  caixas.forEach(qtd => adicionarCaixaModal(qtd));
+  const dims   = Array.isArray(et.dimensoes) ? et.dimensoes : [];
+  
+  caixas.forEach((qtd, i) => {
+    adicionarCaixaModal(qtd, dims[i] || { c: 0, l: 0, a: 0 });
+  });
 
   document.getElementById('modal-etiqueta').style.display = 'flex';
 }
@@ -249,7 +306,17 @@ function atualizarLabelEntrega() {
   if (label) label.textContent = (tipo === 'transportadora' ? 'Transportadora' : 'Representante') + ':';
 }
 
-function adicionarCaixaModal(valorInicial = '') {
+function atualizarModalRotuloNf() {
+  const tipoDoc = document.getElementById('modal-tipoDoc').value;
+  const lbl = document.getElementById('modal-lblNf');
+  if (tipoDoc === 'orcamento') {
+    lbl.textContent = 'Orçamento:';
+  } else {
+    lbl.textContent = 'Nota Fiscal (NF):';
+  }
+}
+
+function adicionarCaixaModal(valorInicial = '', dim = { c: 0, l: 0, a: 0 }) {
   _modalCaixasCount++;
   const n    = _modalCaixasCount;
   const lista = document.getElementById('modal-caixas-lista');
@@ -257,10 +324,35 @@ function adicionarCaixaModal(valorInicial = '') {
   const item = document.createElement('div');
   item.className = 'caixa-modal-item';
   item.id        = `modal-caixa-item-${n}`;
+  item.style.marginBottom = '15px';
+  item.style.padding = '10px';
+  item.style.background = '#f8fafc';
+  item.style.borderRadius = '8px';
+  item.style.border = '1px solid #e2e8f0';
+
   item.innerHTML = `
-    <span style="font-weight:600; color:#4a5568; min-width:70px; font-size:14px;">Caixa ${n}:</span>
-    <input type="number" id="modal-caixa-${n}" min="1" value="${valorInicial}" placeholder="nº de produtos">
-    <button type="button" class="btn-remover-caixa" onclick="removerCaixaModal(${n})">✕ Remover</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <span style="font-weight:700; color:#4a5568;">Caixa ${n}</span>
+      <button type="button" class="btn-remover-caixa" onclick="removerCaixaModal(${n})" style="margin:0; padding:2px 8px; font-size:12px;">✕ Remover</button>
+    </div>
+    <div style="display:grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap:8px; align-items:end;">
+      <div>
+        <label style="font-size:11px; color:#718096; margin-bottom:4px;">Produtos:</label>
+        <input type="number" id="modal-caixa-${n}" min="0" value="${valorInicial}" placeholder="Qtd">
+      </div>
+      <div>
+        <label style="font-size:11px; color:#718096; margin-bottom:4px;">A(cm):</label>
+        <input type="number" id="modal-caixa-a-${n}" min="0" step="0.1" value="${dim.a || 0}">
+      </div>
+      <div>
+        <label style="font-size:11px; color:#718096; margin-bottom:4px;">L(cm):</label>
+        <input type="number" id="modal-caixa-l-${n}" min="0" step="0.1" value="${dim.l || 0}">
+      </div>
+      <div>
+        <label style="font-size:11px; color:#718096; margin-bottom:4px;">C(cm):</label>
+        <input type="number" id="modal-caixa-c-${n}" min="0" step="0.1" value="${dim.c || 0}">
+      </div>
+    </div>
   `;
   lista.appendChild(item);
 }
@@ -281,11 +373,21 @@ async function salvarEdicaoEtiqueta(e) {
 
     // Coleta os valores das caixas (ignora removidas)
     const caixas = [];
+    const dimensoes = [];
+
     document.querySelectorAll('#modal-caixas-lista .caixa-modal-item').forEach(item => {
-      const input = item.querySelector('input[type="number"]');
-      if (input) {
-        const val = parseInt(input.value) || 0;
-        caixas.push(val);
+      const inputQtd = item.querySelector('input[id^="modal-caixa-"]:not([id*="-c-"]):not([id*="-l-"]):not([id*="-a-"])');
+      const inputC   = item.querySelector('input[id^="modal-caixa-c-"]');
+      const inputL   = item.querySelector('input[id^="modal-caixa-l-"]');
+      const inputA   = item.querySelector('input[id^="modal-caixa-a-"]');
+
+      if (inputQtd) {
+        caixas.push(parseInt(inputQtd.value) || 0);
+        dimensoes.push({
+          a: parseFloat(inputA?.value) || 0,
+          l: parseFloat(inputL?.value) || 0,
+          c: parseFloat(inputC?.value) || 0
+        });
       }
     });
 
@@ -298,8 +400,11 @@ async function salvarEdicaoEtiqueta(e) {
       data:          document.getElementById('modal-data').value,
       entregaTipo:   tipoEntrega,
       transportadora: document.getElementById('modal-transportadora').value.trim(),
+      kg:            parseFloat(document.getElementById('modal-kg').value) || 0,
       caixas,
+      dimensoes,
       totalProdutos,
+      totalCaixas: caixas.length
     };
 
     await atualizarEtiqueta(_etiquetaEditandoId, dados);
@@ -418,11 +523,13 @@ function exibirFechamentosAprovados(lista) {
     `;
 
     const isAdmin = window._perfilUsuario === 'admin';
+    const isWhatsapp = window._perfilUsuario === 'whatsapp';
 
     div.innerHTML = `
       <div class="card-fechamento-grid">
         <div class="fechamento-info">
           <h3 style="color:#2e7d32;">✅ Fechamento — ${f.orcamento || '-'}</h3>
+          <p><strong>NF Final (Aprovada):</strong> <span style="color:#2e7d32; font-weight:700;">${f.nfFinal || 'Pendente'}</span></p>
           <p><strong>Cliente:</strong> ${f.cliente || '-'} (Cód: ${f.codigoCliente || '-'})</p>
           <p><strong>Enviado por:</strong> ${f.nomeOperador || '-'}</p>
           <p><strong>Representante:</strong> ${f.representante || '-'}</p>
@@ -431,8 +538,9 @@ function exibirFechamentosAprovados(lista) {
           <p><strong>KG:</strong> ${f.kg != null ? f.kg + ' kg' : '-'}</p>
           <p><strong>Pagamento:</strong> ${pagLabel} - <strong>Campanha:</strong> ${f.campanha === 'sim' ? 'SIM' : 'NÃO'}</p>
           <p><strong>Envio:</strong> ${envioLabel}</p>
-          ${isAdmin ? `
+          ${isAdmin && !isWhatsapp ? `
             <div style="display:flex; gap:8px; margin-top:12px;">
+              <button class="btn-editar" style="padding:4px 12px; font-size:11px;" onclick="irParaEdicaoFechamento('${f._id}')">✏️ Editar</button>
               <button class="btn-excluir" style="padding:4px 12px; font-size:11px;" onclick="excluirFechamentoUI('${f._id}')">🗑️ Remover Registro</button>
             </div>
           ` : ''}
@@ -511,6 +619,10 @@ function exportarFechamentosCSV() {
   URL.revokeObjectURL(link.href);
 }
 
+function irParaEdicaoFechamento(id) {
+  window.location.href = `fechamento.html?edit=${id}`;
+}
+
 // ─── INICIALIZAÇÃO ────────────────────────────────────────
 function iniciarListeners() {
   document.getElementById('listaColetas').innerHTML =
@@ -541,7 +653,14 @@ function iniciarListeners() {
 }
 
 // Re-renderiza quando o perfil fica disponível (para mostrar botões de admin)
-window.addEventListener('authPronto', () => {
+window.addEventListener('authPronto', ({ detail }) => {
+  // Oculta aba de etiquetas para perfil whatsapp
+  if (detail.perfil === 'whatsapp') {
+    const btnEt = document.getElementById('aba-etiquetas');
+    if (btnEt) btnEt.style.display = 'none';
+    if (_abaAtiva === 'etiquetas') trocarAba('coletas');
+  }
+
   if (_coletasCache.length > 0)   exibirColetas(_coletasCache);
   if (_etiquetasCache.length > 0) exibirEtiquetas(_etiquetasCache);
   if (_fechamentosCache.length > 0) exibirFechamentosAprovados(_fechamentosCache);

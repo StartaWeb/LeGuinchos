@@ -97,7 +97,6 @@
     <li><a href="index.html">Gerar Etiquetas</a></li>
     <li><a href="agendamento.html">Agendar Coleta</a></li>
     <li><a href="consulta.html">Consultar Coletas</a></li>
-    <li><a href="retirada.html">Confirmar Retirada</a></li>
   </ul>
 </nav>
 
@@ -170,11 +169,11 @@
       <label for="modal-cliente">Cliente:</label>
       <input type="text" id="modal-cliente" required>
 
-      <label for="modal-nf">NF / Orçamento:</label>
+      <label id="modal-lblNf" for="modal-nf">NF / Orçamento:</label>
       <input type="text" id="modal-nf" required>
 
       <label for="modal-tipoDoc">Tipo de Documento:</label>
-      <select id="modal-tipoDoc">
+      <select id="modal-tipoDoc" onchange="atualizarModalRotuloNf()">
         <option value="nf">Nota Fiscal</option>
         <option value="orcamento">Orçamento</option>
       </select>
@@ -188,8 +187,16 @@
         <option value="representante">Representante</option>
       </select>
 
-      <label id="modal-label-entrega" for="modal-transportadora">Transportadora:</label>
-      <input type="text" id="modal-transportadora">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div>
+          <label id="modal-label-entrega" for="modal-transportadora">Transportadora:</label>
+          <input type="text" id="modal-transportadora">
+        </div>
+        <div>
+          <label for="modal-kg">Peso Total (kg):</label>
+          <input type="number" id="modal-kg" step="0.1" min="0">
+        </div>
+      </div>
 
       <p class="caixas-titulo">Caixas:</p>
       <div id="modal-caixas-lista"></div>

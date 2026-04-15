@@ -401,7 +401,12 @@
 
     async function aprovar(id) {
       if (!id) { console.error('ID do fechamento não fornecido.'); return; }
-      if (!confirm('Confirmar aprovação deste fechamento?')) return;
+      
+      const nfFinal = prompt('Informe o Número da Nota Fiscal para concluir a aprovação:');
+      if (nfFinal === null) return; // cancelou
+      if (!nfFinal.trim()) { alert('O número da Nota Fiscal é obrigatório para aprovar.'); return; }
+
+      if (!confirm(`Confirmar aprovação do fechamento com a NF: ${nfFinal}?`)) return;
       
       // Capturar o botão que foi clicado
       const btn = event.currentTarget;
@@ -410,8 +415,27 @@
       btn.textContent = '⌛...';
 
       try {
-        await atualizarFechamento(id, { status: 'aprovado', obs: null });
-        console.log(`Fechamento ${id} aprovado com sucesso.`);
+        await atualizarFechamento(id, { 
+          status: 'aprovado', 
+          obs: null,
+          nfFinal: nfFinal.trim(),
+          aprovadoPor: window._nomeUsuario || 'Sistema',
+          aprovadoEm: new Date()
+        });
+        
+        // Também atualizamos a etiqueta vinculada para o status 'aprovado'
+        const f = await db.collection('fechamentos').doc(id).get();
+        if (f.exists && f.data().etiquetaId) {
+          await db.collection('etiquetas').doc(f.data().etiquetaId).update({
+            status: 'aprovado',
+            nfFinal: nfFinal.trim()
+          });
+        }
+        
+        if (confirm(`✅ Fechamento aprovado com sucesso! Deseja ir para a tela de etiquetas para gerar a etiqueta com a NF ${nfFinal}?`)) {
+          window.location.href = `index.html?import_nf=${encodeURIComponent(nfFinal.trim())}`;
+        }
+        
       } catch (err) {
         console.error('Erro ao aprovar fechamento:', err);
         alert('Erro ao aprovar: ' + err.message);

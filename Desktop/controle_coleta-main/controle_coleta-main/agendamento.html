@@ -11,9 +11,36 @@
         <li><a href="index.html">Gerar Etiquetas</a></li>
         <li><a href="agendamento.html">Agendar Coleta</a></li>
         <li><a href="consulta.html">Consultar Coletas</a></li>
-        <li><a href="retirada.html">Confirmar Retirada</a></li>
     </ul>
 </nav>
+
+<style>
+    .input-com-botao {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    .input-com-botao input {
+        flex: 1;
+        margin-top: 0 !important;
+    }
+    .btn-importar {
+        background: linear-gradient(135deg, #00bcd4, #009688);
+        color: white;
+        border: none;
+        padding: 11px 20px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 14px;
+        box-shadow: 0 4px 10px rgba(0, 188, 212, 0.25);
+        transition: all 0.3s ease;
+    }
+    .btn-importar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 188, 212, 0.35);
+    }
+</style>
 
 <h1 style="text-align: center;">Agendamento de Coleta</h1>
 
@@ -30,8 +57,11 @@
     <label for="protocolo">Número de Protocolo:</label>
     <input type="text" id="protocolo" name="protocolo" required>
 
-    <label for="notaFiscal">Nota Fiscal:</label>
-    <input type="text" id="notaFiscal" name="notaFiscal">
+    <label for="notaFiscal">Nota Fiscal (NF):</label>
+    <div class="input-com-botao">
+        <input type="text" id="notaFiscal" name="notaFiscal" placeholder="Digite o número da NF para importar...">
+        <button type="button" class="btn-importar" onclick="importarDadosNF()">📥 Importar</button>
+    </div>
 
     <label for="ordemServico">Ordem de Serviço:</label>
     <input type="text" id="ordemServico" name="ordemServico" placeholder="Deixe em branco para gerar automaticamente">

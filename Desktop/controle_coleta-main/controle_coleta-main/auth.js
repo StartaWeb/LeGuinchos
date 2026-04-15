@@ -10,24 +10,22 @@
   // Configurações de Acesso por Perfil
   const PERFIS_CONFIG = {
     admin: {
-      acesso: ['index.html', 'agendamento.html', 'consulta.html', 'retirada.html', 'fechamento.html', 'aprovacao.html', 'usuarios.html'],
+      acesso: ['index.html', 'agendamento.html', 'consulta.html', 'fechamento.html', 'aprovacao.html', 'usuarios.html'],
       menu: [
         { href: 'index.html',       label: '🏷️ Etiquetas' },
         { href: 'agendamento.html', label: '📅 Agendar Coleta' },
         { href: 'consulta.html',    label: '🔍 Consultas' },
-        { href: 'retirada.html',    label: '✅ Retirada' },
         { href: 'fechamento.html',  label: '📋 Fechamento' },
         { href: 'aprovacao.html',   label: '🗂️ Aprovar' },
         { href: 'usuarios.html',    label: '👥 Usuários' }
       ]
     },
     expedicao: {
-      acesso: ['index.html', 'agendamento.html', 'consulta.html', 'retirada.html'],
+      acesso: ['index.html', 'agendamento.html', 'consulta.html'],
       menu: [
         { href: 'index.html',       label: '🏷️ Etiquetas' },
         { href: 'agendamento.html', label: '📅 Agendar Coleta' },
-        { href: 'consulta.html',    label: '🔍 Consultas' },
-        { href: 'retirada.html',    label: '✅ Retirada' }
+        { href: 'consulta.html',    label: '🔍 Consultas' }
       ]
     },
     faturamento: {

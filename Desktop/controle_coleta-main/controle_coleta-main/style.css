@@ -59,6 +59,7 @@ body {
   background: rgba(255,255,255,0.9);
   transition: all 0.25s ease;
   margin-top: 0;
+  width: 90px;
 }
 .caixa-row input[type=number]:focus {
   outline: none;

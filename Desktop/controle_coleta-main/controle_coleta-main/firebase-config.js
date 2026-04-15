@@ -355,3 +355,55 @@ async function checarFechamentoExistente(orcamento) {
 
   return false;
 }
+
+/**
+ * Busca um fechamento aprovado pelo número da NF Final.
+ */
+async function buscarFechamentoPorNFFinal(nf) {
+  mostrarStatusConexao(true);
+  const snapshot = await db.collection('fechamentos')
+    .where('nfFinal', '==', nf)
+    .where('status', '==', 'aprovado')
+    .limit(1)
+    .get();
+  if (snapshot.empty) return null;
+  const doc = snapshot.docs[0];
+  return { _id: doc.id, ...doc.data() };
+}
+
+/**
+ * Registra um log de alteração no banco de dados.
+ */
+async function registrarLog(usuario, acao, documentoId, dados = {}) {
+  try {
+    await db.collection('logs').add({
+      usuario: usuario || 'Sistema',
+      acao: acao,
+      documentoId: documentoId,
+      dados: dados,
+      data: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (err) {
+    console.error('Erro ao registrar log:', err);
+  }
+}
+
+/**
+ * Escuta todos os fechamentos (para perfis admin e whatsapp).
+ */
+function ouvirTodosFechamentos(callback) {
+  return db.collection('fechamentos')
+    .orderBy('criadoEm', 'desc')
+    .onSnapshot(
+      (snapshot) => {
+        mostrarStatusConexao(true);
+        const lista = snapshot.docs.map(doc => ({ _id: doc.id, ...doc.data() }));
+        callback(lista);
+      },
+      (error) => {
+        console.error('Erro ao escutar todos os fechamentos:', error);
+        mostrarStatusConexao(false);
+      }
+    );
+}
+

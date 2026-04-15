@@ -355,6 +355,13 @@
       <label class="radio-pill" id="pill-boleto">
         <input type="radio" name="pagamento" value="boleto"> 📄 Boleto
       </label>
+      <label class="radio-pill" id="pill-pagamento-outros">
+        <input type="radio" name="pagamento" value="outros"> ➕ Outros
+      </label>
+    </div>
+    <div id="pagamentoOutrosWrap" style="display:none; margin-top:12px;">
+      <label>Especifique a Forma de Pagamento</label>
+      <input type="text" id="pagamentoOutros" placeholder="Digite aqui...">
     </div>
     <div class="parcelas-wrap" id="parcelasWrap">
       <label>Número de Parcelas</label>
@@ -385,6 +392,13 @@
       <label class="radio-pill" id="pill-transportadora">
         <input type="radio" name="envio" value="transportadora"> 🚚 Transportadora
       </label>
+      <label class="radio-pill" id="pill-envio-outros">
+        <input type="radio" name="envio" value="outros"> ➕ Outros
+      </label>
+    </div>
+    <div id="envioOutrosWrap" style="display:none; margin-top:12px;">
+      <label>Especifique a Forma de Envio</label>
+      <input type="text" id="envioOutros" placeholder="Digite aqui...">
     </div>
 
     <div id="freteWrap" style="display:none; margin-top:14px;">
@@ -461,6 +475,8 @@
       document.getElementById('parcelasWrap').style.display = (val === 'cartao' || val === 'boleto') ? 'block' : 'none';
       // Exibe anexo para PIX ou cartão
       document.getElementById('secaoAnexo').style.display = (val === 'pix' || val === 'cartao') ? 'block' : 'none';
+      // Exibe campo 'Outros'
+      document.getElementById('pagamentoOutrosWrap').style.display = (val === 'outros') ? 'block' : 'none';
     }
 
     function onEnvioChange(val) {
@@ -468,6 +484,8 @@
       document.getElementById('freteWrap').style.display = (val === 'sedex' || val === 'correios') ? 'block' : 'none';
       // Exibe nome se for transportadora
       document.getElementById('transportadoraWrap').style.display = (val === 'transportadora') ? 'block' : 'none';
+      // Exibe campo 'Outros'
+      document.getElementById('envioOutrosWrap').style.display = (val === 'outros') ? 'block' : 'none';
     }
 
     // ── Buscar dados da etiqueta ──
@@ -542,15 +560,33 @@
         this.value = ''; // Limpa o input para permitir selecionar os mesmos arquivos novamente se removidos
       });
 
-      // Escutar meus fechamentos após auth pronto
+      // Escutar fechamentos após auth pronto
       window.addEventListener('authPronto', ({ detail }) => {
         const uid = firebase.auth().currentUser?.uid;
+        const perfil = detail.perfil;
         if (!uid) return;
+        
         if (unsubMeusFechamentos) unsubMeusFechamentos();
-        unsubMeusFechamentos = ouvirMeusFechamentos(uid, (lista) => {
-          _meusFechamentosCache = lista;
-          renderMeusFechamentos(lista);
-        });
+        
+        // Se for admin ou whatsapp, vê todos. Caso contrário, só os próprios.
+        if (perfil === 'admin' || perfil === 'whatsapp') {
+          unsubMeusFechamentos = ouvirTodosFechamentos((lista) => {
+            _meusFechamentosCache = lista;
+            renderMeusFechamentos(lista);
+          });
+        } else {
+          unsubMeusFechamentos = ouvirMeusFechamentos(uid, (lista) => {
+            _meusFechamentosCache = lista;
+            renderMeusFechamentos(lista);
+          });
+        }
+
+        // Verifica se há pedido para edição via URL (?edit=ID)
+        const urlParams = new URLSearchParams(window.location.search);
+        const editId = urlParams.get('edit');
+        if (editId && perfil === 'admin') {
+           carregarParaEdicao(editId);
+        }
       });
     });
 
@@ -594,11 +630,21 @@
 
       const pagamentoEl = document.querySelector('input[name="pagamento"]:checked');
       if (!pagamentoEl) { alert('Selecione a forma de pagamento.'); return; }
-      const pagamento = pagamentoEl.value;
+      let pagamento = pagamentoEl.value;
+      const pagamentoOutros = document.getElementById('pagamentoOutros').value.trim();
+      if (pagamento === 'outros') {
+        if (!pagamentoOutros) { alert('Especifique a outra forma de pagamento.'); return; }
+        pagamento = pagamentoOutros;
+      }
 
       const envioEl = document.querySelector('input[name="envio"]:checked');
       if (!envioEl) { alert('Selecione a forma de envio.'); return; }
-      const envio = envioEl.value;
+      let envio = envioEl.value;
+      const envioOutros = document.getElementById('envioOutros').value.trim();
+      if (envio === 'outros') {
+        if (!envioOutros) { alert('Especifique a outra forma de envio.'); return; }
+        envio = envioOutros;
+      }
 
       const campanhaEl = document.querySelector('input[name="campanha"]:checked');
       if (!campanhaEl) { alert('Informe se tem campanha.'); return; }
@@ -646,9 +692,15 @@
       try {
         if (_fechamentoEdicaoId) {
           await atualizarFechamento(_fechamentoEdicaoId, { ...dados, status: 'aguardando', obs: null });
+          if (window._perfilUsuario === 'expedicao') {
+            await registrarLog(window._nomeUsuario, 'Editou fechamento existente', _fechamentoEdicaoId, { orcamento: dados.orcamento });
+          }
           alert('✅ Fechamento corrigido e reenviado para aprovação!');
         } else {
-          await salvarFechamento(dados);
+          const newId = await salvarFechamento(dados);
+          if (window._perfilUsuario === 'expedicao') {
+            await registrarLog(window._nomeUsuario, 'Criou novo fechamento', newId, { orcamento: dados.orcamento });
+          }
           alert('✅ Fechamento enviado para aprovação com sucesso!');
         }
 
@@ -729,10 +781,21 @@
 
     function carregarParaEdicao(id) {
       const f = _meusFechamentosCache.find(x => x._id === id);
-      if (!f) return;
+      if (!f) {
+        // Se não achou no cache (talvez não seja o dono ou não carregou ainda), tenta buscar direto
+        db.collection('fechamentos').doc(id).get().then(doc => {
+          if (doc.exists) preencherParaEdicao({ _id: doc.id, ...doc.data() });
+        });
+        return;
+      }
+      preencherParaEdicao(f);
+    }
 
+    function preencherParaEdicao(f) {
       _fechamentoEdicaoId = f._id;
-      document.querySelector('.btn-enviar').textContent = '💾 Atualizar Fechamento Corrigido';
+      document.querySelector('.btn-enviar').textContent = (f.status === 'aprovado' && window._perfilUsuario === 'admin') 
+        ? '💾 Salvar Alterações no Fechamento Aprovado' 
+        : '💾 Atualizar Fechamento Corrigido';
 
       // Importar mock de etiqueta
       etiquetaImportada = {

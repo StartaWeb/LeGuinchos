@@ -13,7 +13,6 @@
       <li><a href="index.html">Gerar Etiquetas</a></li>
       <li><a href="agendamento.html">Agendar Coleta</a></li>
       <li><a href="consulta.html">Consultar Coletas</a></li>
-      <li><a href="retirada.html">Confirmar Retirada</a></li>
     </ul>
   </nav>
 
@@ -26,12 +25,13 @@
       <div>
         <label>Cliente: <input type="text" id="cliente"></label>
       </div>
-      <div>
-        <label>NF / Orçamento: <input type="text" id="nf"></label>
+      <div style="display: flex; gap: 10px; align-items: flex-end;">
+        <label id="lblNf" style="flex: 1;">NF / Orçamento: <input type="text" id="nf"></label>
+        <button type="button" id="btnImportarNF" onclick="importarDadosAprovados()" style="margin-top: 0; padding: 10px 15px; font-size: 13px; background: linear-gradient(135deg, #00bcd4, #009688); display: none;">📥 Importar NF</button>
       </div>
       <div>
         <label>Tipo de documento:
-          <select id="tipoDocumento">
+          <select id="tipoDocumento" onchange="atualizarRotuloNf()">
             <option value="nf">Nota Fiscal</option>
             <option value="orcamento">Orçamento</option>
           </select>
@@ -92,6 +92,16 @@
     window.onload = function () {
       const hoje = new Date().toISOString().split("T")[0];
       document.getElementById("data").value = hoje;
+      
+      // Verifica se há NF para importar via URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const nfParaImportar = urlParams.get('import_nf');
+      if (nfParaImportar) {
+        document.getElementById("tipoDocumento").value = 'nf';
+        atualizarRotuloNf();
+        document.getElementById("nf").value = nfParaImportar;
+        setTimeout(() => importarDadosAprovados(), 500);
+      }
     };
 
     function adicionarCaixa() {
@@ -106,9 +116,9 @@
           <label style="flex:1;">Produtos na caixa ${contadorCaixas}: <input type="number" id="caixa_${contadorCaixas}" min="1"></label>
         </div>
         <div class="caixa-row no-print">
-          <label>C(cm): <input type="number" id="caixa_c_${contadorCaixas}" min="0" step="0.1" style="width:75px"></label>
-          <label>L(cm): <input type="number" id="caixa_l_${contadorCaixas}" min="0" step="0.1" style="width:75px"></label>
-          <label>A(cm): <input type="number" id="caixa_a_${contadorCaixas}" min="0" step="0.1" style="width:75px"></label>
+          <label>A(cm): <input type="number" id="caixa_a_${contadorCaixas}" min="0" step="0.1"></label>
+          <label>L(cm): <input type="number" id="caixa_l_${contadorCaixas}" min="0" step="0.1"></label>
+          <label>C(cm): <input type="number" id="caixa_c_${contadorCaixas}" min="0" step="0.1"></label>
         </div>
       `;
       container.appendChild(lbl);
@@ -201,12 +211,11 @@
         <img src="EbenezerTitulo.png" class="logo-etiqueta" alt="">
         <div class="conteudo">
           <p><strong>Cliente:</strong> ${cliente}</p>
-          <p><strong>${tipoDoc === "nf" ? "NF" : "Orçamento"}:</strong> ${nf}</p>
           <p><strong>Caixa:</strong> ${numeroEtiqueta} de ${caixasValidas}</p>
           <p><strong>Produtos na caixa:</strong> ${prod}</p>
           <p><strong>Data:</strong> ${data}</p>
-          <p><strong>${entregaTipo.charAt(0).toUpperCase() + entregaTipo.slice(1)}:</strong> ${trans}</p>
-          <p class="no-print" style="color:#7b1fa2;"><strong>Total Caixas:</strong> ${caixasValidas} | <strong>KG:</strong> ${kg} kg</p>
+          <p><strong>${window._modeloEnvioAtivo ? 'Envio' : (entregaTipo === 'transportadora' ? 'Transportadora' : 'Representante')}:</strong> ${window._modeloEnvioAtivo || trans}</p>
+          ${tipoDoc === 'nf' ? '' : `<p class="no-print" style="color:#7b1fa2;"><strong>Total Caixas:</strong> ${caixasValidas} | <strong>KG:</strong> ${kg} kg</p>`}
         </div>
       `;
         wrap.appendChild(div);
@@ -223,7 +232,7 @@
           hour: '2-digit', minute: '2-digit', second: '2-digit'
         });
 
-        await salvarEtiqueta({
+        const id = await salvarEtiqueta({
           cliente,
           nf,
           tipoDoc,
@@ -237,6 +246,9 @@
           kg,
           geradaEm
         });
+        if (window._perfilUsuario === 'expedicao') {
+          await registrarLog(window._nomeUsuario, 'Gerou etiqueta', id, { nf });
+        }
       } catch (err) {
         console.warn('Aviso: etiqueta gerada mas não salva no banco:', err.message);
       }
@@ -262,7 +274,91 @@
     function alternarEntrega() {
       const tipo = document.getElementById("tipoEntrega").value;
       const campo = document.getElementById("entregaCampo");
-      campo.innerHTML = `<label>${tipo.charAt(0).toUpperCase() + tipo.slice(1)}: <input type="text" id="transportadora"></label>`;
+      const labelText = tipo === 'transportadora' ? 'Transportadora' : 'Representante';
+      campo.innerHTML = `<label>${labelText}: <input type="text" id="transportadora"></label>`;
+    }
+
+    function atualizarRotuloNf() {
+      const tipoDoc = document.getElementById("tipoDocumento").value;
+      const lbl = document.getElementById("lblNf");
+      const btnImportar = document.getElementById("btnImportarNF");
+      
+      if (tipoDoc === 'orcamento') {
+        lbl.innerHTML = `Orçamento: <input type="text" id="nf">`;
+        btnImportar.style.display = 'none';
+      } else {
+        lbl.innerHTML = `Nota Fiscal (NF): <input type="text" id="nf">`;
+        if (btnImportar) btnImportar.style.display = 'inline-flex';
+      }
+    }
+
+    async function importarDadosAprovados() {
+      const nf = document.getElementById("nf").value.trim();
+      if (!nf) { alert("Digite o número da NF para importar."); return; }
+
+      const btn = document.getElementById("btnImportarNF");
+      const originalText = btn.innerHTML;
+      btn.innerHTML = "⌛...";
+      btn.disabled = true;
+
+      try {
+        const f = await buscarFechamentoPorNFFinal(nf);
+        if (!f) {
+          alert("Nenhum fechamento aprovado encontrado com esta NF final.");
+          return;
+        }
+
+        document.getElementById("cliente").value = f.cliente || "";
+        document.getElementById("data").value = new Date().toISOString().split("T")[0];
+        
+        // Define tipo de entrega
+        const selectEntrega = document.getElementById("tipoEntrega");
+        if (f.envio === 'transportadora') {
+          selectEntrega.value = 'transportadora';
+        } else if (f.representante && f.representante !== 'transportadora') {
+          selectEntrega.value = 'representante';
+        }
+        alternarEntrega();
+        
+        // Define transportadora/representante
+        const inputTransp = document.getElementById("transportadora");
+        if (inputTransp) {
+          inputTransp.value = f.nomeTransportadora || f.representante || "";
+        }
+        
+        // Armazena modelo de envio amigável para a etiqueta
+        const envioMap = { correios: 'Correios', sedex: 'SEDEX', transportadora: 'Transportadora' };
+        window._modeloEnvioAtivo = envioMap[f.envio] || f.envio || '';
+
+        // Limpa caixas atuais e adiciona as do fechamento
+        document.getElementById("quantidadesCaixas").innerHTML = "";
+        contadorCaixas = 0;
+
+        if (f.dimensoes && f.dimensoes.length > 0) {
+          f.dimensoes.forEach((d, i) => {
+            adicionarCaixa();
+            // Preenche quantidades (se disponíveis, se não assume 1 ou busca na etiqueta original se necessário)
+            // No fechamento temos totalCaixas, mas nem sempre a quantidade de itens por caixa individual.
+            // Para etiquetas de NF, geralmente o foco são as dimensões.
+            const inputQtd = document.getElementById(`caixa_${contadorCaixas}`);
+            if (inputQtd) inputQtd.value = 1; // Valor padrão se não houver detalhamento por caixa no fechamento
+            
+            document.getElementById(`caixa_a_${contadorCaixas}`).value = d.a || 0;
+            document.getElementById(`caixa_l_${contadorCaixas}`).value = d.l || 0;
+            document.getElementById(`caixa_c_${contadorCaixas}`).value = d.c || 0;
+          });
+        }
+        
+        document.getElementById("kg").value = f.kg || "";
+        atualizarTotalProdutos();
+        alert("✅ Dados da NF importados com sucesso!");
+
+      } catch (err) {
+        alert("Erro ao importar: " + err.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
     }
 
     function exportarParaExcel() {

@@ -2,6 +2,43 @@
 //  agendamento.js — Integrado com Firebase Firestore
 // ============================================================
 
+// Preenche solicitante automaticamente quando o perfil estiver pronto
+window.addEventListener('authPronto', ({ detail }) => {
+  const inputSolicitante = document.getElementById('solicitante');
+  if (inputSolicitante && detail.nome) {
+    inputSolicitante.value = detail.nome;
+  }
+});
+
+async function importarDadosNF() {
+  const nf = document.getElementById('notaFiscal').value.trim();
+  if (!nf) { alert('Digite o número da NF para importar.'); return; }
+
+  const btn = document.querySelector('.btn-importar');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '⌛...';
+
+  try {
+    const et = await buscarEtiquetaPorNF(nf);
+    if (!et) {
+      alert('Nenhuma etiqueta encontrada com este número.');
+      return;
+    }
+    
+    // Preenche o cliente
+    document.getElementById('cliente').value = et.cliente || '';
+    
+    alert('✅ Dados do cliente importados com sucesso!');
+    window._etiquetaImportadaId = et._id;
+  } catch (err) {
+    alert('❌ Erro ao importar: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+}
+
 document.getElementById('coletaForm').addEventListener('submit', async function (e) {
   e.preventDefault();
 
@@ -40,10 +77,15 @@ document.getElementById('coletaForm').addEventListener('submit', async function 
       prazo,
       numeroColeta,
       dataHoraAgendamento,
-      status: 'Agendada'
+      status: 'Agendada',
+      etiquetaId: window._etiquetaImportadaId || null,
+      etiquetaGerada: !!window._etiquetaImportadaId
     };
 
-    await salvarColeta(coleta);
+    const id = await salvarColeta(coleta);
+    if (window._perfilUsuario === 'expedicao') {
+      await registrarLog(window._nomeUsuario, 'Agendou coleta', id, { cliente: coleta.cliente });
+    }
 
     document.getElementById('confirmacao').innerHTML = `
       <h2>✅ Coleta Agendada!</h2>
@@ -52,7 +94,7 @@ document.getElementById('coletaForm').addEventListener('submit', async function 
       <p><strong>Solicitante:</strong> ${solicitante}</p>
       <p><strong>Atendente:</strong> ${atendente}</p>
       <p><strong>Número de Protocolo:</strong> ${numeroProtocolo || '-'}</p>
-      <p><strong>Nota Fiscal:</strong> ${notaFiscal || '-'}</p>
+      <p><strong>NF:</strong> ${notaFiscal || '-'}</p>
       <p><strong>Ordem de Serviço:</strong> ${numeroServico}</p>
       <p><strong>Observação:</strong> ${observacao || '-'}</p>
       <p><strong>Prazo:</strong> ${prazo}</p>
