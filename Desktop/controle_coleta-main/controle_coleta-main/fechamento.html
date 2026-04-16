@@ -677,6 +677,7 @@
           ? etiquetaImportada.transportadora : etiquetaImportada.entregaTipo,
         totalCaixas: etiquetaImportada.totalCaixas ?? etiquetaImportada.caixas?.length,
         kg: etiquetaImportada.kg ?? 0,
+        caixas: etiquetaImportada.caixas ?? [],
         dimensoes: etiquetaImportada.dimensoes ?? [],
         pagamento,
         numParcelas: (pagamento === 'cartao' || pagamento === 'boleto') ? numParcelas : null,

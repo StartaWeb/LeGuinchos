@@ -341,7 +341,7 @@
             // No fechamento temos totalCaixas, mas nem sempre a quantidade de itens por caixa individual.
             // Para etiquetas de NF, geralmente o foco são as dimensões.
             const inputQtd = document.getElementById(`caixa_${contadorCaixas}`);
-            if (inputQtd) inputQtd.value = 1; // Valor padrão se não houver detalhamento por caixa no fechamento
+            if (inputQtd) inputQtd.value = (f.caixas && f.caixas[i] !== undefined) ? f.caixas[i] : 1;
             
             document.getElementById(`caixa_a_${contadorCaixas}`).value = d.a || 0;
             document.getElementById(`caixa_l_${contadorCaixas}`).value = d.l || 0;
